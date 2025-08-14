@@ -345,6 +345,7 @@ def handle_authentication(environ, overrideJTI=False, overrideExpiry=False):
     tokentype = query_params.get('tokentype', [''])[0]
     jti = str(uuid.uuid4()) if overrideJTI else query_params.get('jti', [''])[0]
 
+    azp = query_params.get('azp',[''])[0]
     kid = query_params.get('kid', [''])[0]
     alg = query_params.get('alg', [''])[0]
 
@@ -379,7 +380,7 @@ def handle_authentication(environ, overrideJTI=False, overrideExpiry=False):
         "iss": "https://example-trimble.ctct.com" if tokentype == "trimble" else "https://example-cat.ctct.com",
         "jti": jti,
         "exp": expiry,
-        "azp": "4c6f46d7-4504-4db4-ae9e-bcd1a5500c34",
+        "azp": azp,
         "sub": "a324d232-76a8-4f11-bef5-5100b8dc60b2"
     })
 
@@ -803,7 +804,7 @@ def get_html_form():
                         </div>
 
                         <div class="form-group half-width">
-                            <label for="kid">JTI:</label>
+                            <label for="jti">JTI:</label>
                             <input type="text" id="jti" name="jti" required placeholder="Enter JWT Token Identifier" value="{str(uuid.uuid4())}">
                         </div>
                     </div>
@@ -817,6 +818,13 @@ def get_html_form():
                         <div class="form-group half-width">
                             <label for="issurl">Public Key URL:</label>
                             <input type="text" id="issurl" name="issurl" required placeholder="Enter public key URL">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group half-width">
+                            <label for="azp">AZP:</label>
+                            <input type="text" id="azp" name="azp" required placeholder="Enter Authorized party" value="4c6f46d7-4504-4db4-ae9e-bcd1a5500c34">
                         </div>
                     </div>
 
@@ -879,7 +887,6 @@ def get_html_form():
                     document.getElementById('issurl').value = window.location.href + 'public-key';
                     document.getElementById('authRedirect').value = window.location.href + 'reauthenticate';
                     document.getElementById('urlInput').value = window.location.href + 'validate-token';
-
 
                     const tokentypeSelect = document.getElementById("tokentype");
                     const kidInput = document.getElementById("kid");
