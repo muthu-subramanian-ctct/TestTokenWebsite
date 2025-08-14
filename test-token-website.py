@@ -340,7 +340,7 @@ def handle_authentication(environ, overrideJTI=False, overrideExpiry=False):
     username = query_params.get('username', [''])[0]
     roles = query_params.get('roles', [''])[0]
 
-    authRedirect = query_params.get('authRedirect', [''])[0]
+    authRedirect = query_params.get('redirecturl', [''])[0]
 
     tokentype = query_params.get('tokentype', [''])[0]
     jti = str(uuid.uuid4()) if overrideJTI else query_params.get('jti', [''])[0]
@@ -826,6 +826,11 @@ def get_html_form():
                             <label for="azp">AZP:</label>
                             <input type="text" id="azp" name="azp" required placeholder="Enter Authorized party" value="4c6f46d7-4504-4db4-ae9e-bcd1a5500c34">
                         </div>
+
+                        <div class="form-group half-width">
+                            <label for="dsn">EC520 Serial Number:</label>
+                            <input type="text" id="dsn" name="dsn" placeholder="Enter EC520 serial number" value="3107J131YU">
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -834,8 +839,8 @@ def get_html_form():
                     </div>
 
                     <div class="form-group">
-                        <label for="dsn">EC520 Serial Number:</label>
-                        <input type="text" id="dsn" name="dsn" placeholder="Enter EC520 serial number" value="3107J131YU">
+                        <label for="redirect">Redirect URL:</label>
+                        <input type="text" id="redirecturl" name="redirecturl" placeholder="Enter redirect URL">
                     </div>
 
                     <div class="form-group">
@@ -853,11 +858,6 @@ def get_html_form():
                             <label for="expiry">Expiry:</label>
                             <input type="text" id="expiry" name="expiry" required placeholder="Enter parent access token expiry date">
                         </div>
-                    </div>
-
-                    <div class="checkbox-group">
-                        <input type="checkbox" id="authRedirect" name="authRedirect" checked>
-                        <label for="authRedirect">Provide authentication redirect information</label>
                     </div>
 
                     <button type="submit">Send to TechUI</button>
@@ -884,8 +884,8 @@ def get_html_form():
                         time_24hr: true            // Use 24-hour time
                     }});
 
-                    document.getElementById('issurl').value = window.location.href + 'public-key';
-                    document.getElementById('authRedirect').value = window.location.href + 'reauthenticate';
+                    document.getElementById('issurl').value = 'https://stage-vlproductivity.cat.com/.well-known/ec520/keys/';
+                    document.getElementById('redirecturl').value = window.location.href + 'reauthenticate';
                     document.getElementById('urlInput').value = window.location.href + 'validate-token';
 
                     const tokentypeSelect = document.getElementById("tokentype");
