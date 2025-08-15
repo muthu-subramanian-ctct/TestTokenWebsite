@@ -782,7 +782,7 @@ def get_html_form():
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Parent Cloud Platform Simulator</title>
+            <title>Parent Token Simulator</title>
             <script src="https://cdnjs.cloudflare.com/ajax/libs/jsrsasign/11.1.0/jsrsasign-all-min.js" integrity="sha512-Eu9j+HZBor7muHf6IDWoWZ8FKVr6nKe9eIIVR28NEte4Y4GiYRlke26XGdR/re81XE/FfLoLYYVkvNk5GY9RvQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
             <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
             <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -790,7 +790,7 @@ def get_html_form():
         </head>
         <body>
             <div class="form-container">
-                <h2>Parent Cloud Platform Simulator</h2>
+                <h2>Parent Token Simulator</h2>
                 <form action="/grant-remote-access" method="GET" target="_blank">
                     <input type="hidden" name="alg" value="RS256" />
 
