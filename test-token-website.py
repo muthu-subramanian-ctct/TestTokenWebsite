@@ -15,7 +15,7 @@ import threading
 from queue import SimpleQueue
 from TokenTests import test_context
 import html
-
+import ssl
 import requests
 import base64
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -494,6 +494,7 @@ def run_integration_tests(environ, start_response):
 
     test_context['url'] =  form.get('url', [''])[0]
     test_context['pkey_url'] =  form.get('pkey_url', [''])[0]
+    test_context['serial_number'] = form.get('serial_number', [''])[0]
 
     start_response('200 OK', [
         ('Content-Type', 'text/html; charset=utf-8')
@@ -521,8 +522,12 @@ def render_integration_test_form():
 
             Remote.IT Proxy URL: <input type="url" id="url" name="url" value="" placeholder="Enter the current Remote.IT Proxy URL" />
             <br><br>
-            <!-- New Edit Box -->
+            <!-- Edit Box for username-->
             Enter your name: <input type="text" id="username" name="username" value="" placeholder="Enter your name" />
+            <br><br>
+            <br><br>
+            <!-- Edit Box for Serial Number -->
+            Enter Serial Number: <input type="text" id="serial_number" name="serial_number" value="" placeholder="Enter the serial number" />
             <br><br>
             <input type="submit" value="Run Tests" />
         </form>
@@ -1094,6 +1099,7 @@ def run(port=8000):
     server_address = ('', port)
     with make_server('', port, application, server_class=ThreadedWSGIServer, handler_class=WSGIRequestHandler) as httpd:
         print(f'Starting server on port {port}...')
+        print("OpenSSL version:", ssl.OPENSSL_VERSION)
         httpd.serve_forever()
 
 if __name__ == "__main__":

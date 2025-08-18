@@ -3,6 +3,7 @@ import jwt
 import requests
 import time
 import base64
+import uuid
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.serialization import load_pem_public_key, load_pem_private_key, load_der_public_key
@@ -50,7 +51,8 @@ cat_production_azp = '2a672db6-19d1-4fa7-b7f5-c70cc7211928'
 
 test_context = {
     'url': None,
-    'pkey_url': None
+    'pkey_url': None,
+    'serial_number': None
 }
 
 @pytest.mark.parametrize("a, b, expected", [
@@ -71,20 +73,20 @@ def test_subtraction(a, b, expected):
     # Trimble style token tests
     #
     #            JWT                                                                           | Form fields                                                                                | Expected Result
-    #            issuer,              JWT ID,   subject, expiry, authorizedParty,    signature | access_token, device, user,  roles,              redirect, kid,  alg,    issurl, signature | http result code
-    # pytest.param( ctct_trimble_issuer, 'random', '1234',  +5,     ctct_azp,           True,       True,         'msubram-nz-ll02', 'Bob', 'admin,technician', None,     None, None,   None,   None,       200, id='ctct trimble valid request'),           # Success - Correctly signed and submitted CTCT Trimble access request
-    # pytest.param( ctct_trimble_issuer, 'random', '1234',  +5,     cat_production_azp, True,       True,         '1234', 'Bob', 'admin,technician', None,     None, None,   None,   None,       401, id='ctct trimble incorrect azp claim'),     # Failure - JWT has incorrect azp claim
-    # pytest.param( ctct_trimble_issuer, 'random', '1234',  +5,     None,               True,       True,         '1234', 'Bob', 'admin,technician', None,     None, None,   None,   None,       401, id='ctct trimble missing azp claim'),       # Failure - JWT is missing azp claim 
-    # pytest.param( ctct_trimble_issuer, 'random', '1234',  +5,     ctct_azp,           False,      True,         '1234', 'Bob', 'admin,technician', None,     None, None,   None,   None,       401, id='ctct trimble incorrect jwt signature'), # Failure - JWT is signed with the wrong key
-    # pytest.param( ctct_trimble_issuer, 'random', '1234',  +5,     ctct_azp,           None,       True,         '1234', 'Bob', 'admin,technician', None,     None, None,   None,   None,       401, id='ctct trimble missing jwt signature'),   # Failure - JWT isn't signed
+    #            issuer,                JWT ID,          subject, expiry, authorizedParty,    signature | access_token,     device,                     user,   roles,            redirect,  kid,  alg,    issurl, signature | http result code
+    pytest.param( ctct_trimble_issuer, str(uuid.uuid4()), '1234',  +5,     ctct_azp,           True,       True,         test_context['serial_number'], 'Bob', 'admin,technician', None,     None, None,   None,   None,       200, id='ctct trimble valid request'),           # Success - Correctly signed and submitted CTCT Trimble access request
+    pytest.param( ctct_trimble_issuer, str(uuid.uuid4()), '1234',  +5,     cat_production_azp, True,       True,         test_context['serial_number'], 'Bob', 'admin,technician', None,     None, None,   None,   None,       401, id='ctct trimble incorrect azp claim'),     # Failure - JWT has incorrect azp claim
+    pytest.param( ctct_trimble_issuer, str(uuid.uuid4()), '1234',  +5,     None,               True,       True,         test_context['serial_number'], 'Bob', 'admin,technician', None,     None, None,   None,   None,       401, id='ctct trimble missing azp claim'),       # Failure - JWT is missing azp claim 
+    pytest.param( ctct_trimble_issuer, str(uuid.uuid4()), '1234',  +5,     ctct_azp,           False,      True,         test_context['serial_number'], 'Bob', 'admin,technician', None,     None, None,   None,   None,       401, id='ctct trimble incorrect jwt signature'), # Failure - JWT is signed with the wrong key
+    pytest.param( ctct_trimble_issuer, str(uuid.uuid4()), '1234',  +5,     ctct_azp,           None,       True,         test_context['serial_number'], 'Bob', 'admin,technician', None,     None, None,   None,   None,       401, id='ctct trimble missing jwt signature'),   # Failure - JWT isn't signed
 
     # CAT style token tests
     #
     #            JWT                                                                           | Form fields                                                                                | Expected Result
-    #            issuer,              JWT ID,   subject, expiry, authorizedParty,    signature | access_token, device, user,  roles,              redirect, kid, alg,     issurl, signature | http result code
-    pytest.param(ctct_cat_issuer,     'random', '1234',  +5,     ctct_azp,           True,       True,         '1234', 'Bob', 'admin,technician', None,       1,   'RS256', True,   True,     200, id='ctct cat valid request'),            # Success - Correctly signed and submitted CTCT CAT access request
-    # pytest.param(ctct_cat_issuer,     'random', '1234',  +5,     ctct_azp,           True,       True,         '1234', 'Bob', 'admin,technician', None,       1,   'RS256', False,  False,    401, id='ctct cat incorrect form signature'), # Failure - form field has incorrect signature
-    # pytest.param(ctct_cat_issuer,     'random', '1234',  +5,     ctct_azp,           True,       True,         '1234', 'Bob', 'admin,technician', None,       1,   'RS256', None,   False,    401, id='ctct cat missing form siganture'),   # Failure - form field has no signature
+    #            issuer,                JWT ID,          subject, expiry, authorizedParty,    signature | access_token, device,                         user,  roles,            redirect,   kid,   alg,    issurl, signature | http result code
+    pytest.param(ctct_cat_issuer,     str(uuid.uuid4()), '1234',  +5,     ctct_azp,           True,       True,         test_context['serial_number'], 'Bob', 'admin,technician', None,       1,   'RS256', True,   True,     200, id='ctct cat valid request'),            # Success - Correctly signed and submitted CTCT CAT access request
+    pytest.param(ctct_cat_issuer,     str(uuid.uuid4()), '1234',  +5,     ctct_azp,           True,       True,         test_context['serial_number'], 'Bob', 'admin,technician', None,       1,   'RS256', False,  False,    401, id='ctct cat incorrect form signature'), # Failure - form field has incorrect signature
+    pytest.param(ctct_cat_issuer,     str(uuid.uuid4()), '1234',  +5,     ctct_azp,           True,       True,         test_context['serial_number'], 'Bob', 'admin,technician', None,       1,   'RS256', None,   False,    401, id='ctct cat missing form siganture'),   # Failure - form field has no signature
 
     # Tokens issued by someone else
     # pytest.param('http://mickey-mouse.com', 'random', '1234',  +5,     ctct_azp,           True,       True,         '1234', 'Bob', 'admin,technician', None,     None, None,   None,   None, 401, id='incorrect issuer'), # Failure - JWT has incorrect issuer
