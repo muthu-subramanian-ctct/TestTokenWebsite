@@ -856,7 +856,7 @@ def get_html_form():
                     <div class="form-row">
                         <div class="form-group half-width">
                             <label for="roles">Roles:</label>
-                            <input type="text" id="roles" name="roles" required placeholder="Enter roles" value="admin,technician">
+                            <input type="text" id="roles" name="roles" placeholder="Enter roles" value="admin,technician">
                         </div>
 
                         <div class="form-group half-width">
