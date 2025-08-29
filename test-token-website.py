@@ -914,7 +914,7 @@ def get_html_form():
                         const show = selectedValue === "cat";
 
                         formRow.style.display = show ? "" : "none";
-                        jtiGroup.style.display = "none";
+                        jtiGroup.style.display = show ? "none" : "";
 
                         kidInput.required = show;
                         issurlInput.required = show;
