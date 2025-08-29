@@ -142,7 +142,11 @@ def validate_jwt(token, environ):
         expiry = None
 
         # Check for missing claims
-        for claim in ['iss', 'azp', 'exp', 'jti', 'sub']:
+        claims = ['iss', 'azp', 'exp', 'jti', 'sub']
+        if 'cat' in issuer:
+            claims.remove('jti')
+            
+        for claim in claims:
             if claim not in claims:
                 jwt_error = f"Missing {claim} claim"
 
