@@ -376,9 +376,15 @@ def handle_authentication(environ, overrideJTI=False, overrideExpiry=False):
         redirect = authRedirect + '?' + urlencode(params)
 
     # Handle the JWT creation
+    
     jwt_token = generate_jwt({
-        "iss": "https://example-trimble.ctct.com" if tokentype == "trimble" else "https://example-cat.ctct.com",
+        "iss": "https://example-trimble.ctct.com",
         "jti": jti,
+        "exp": expiry,
+        "azp": azp,
+        "sub": "a324d232-76a8-4f11-bef5-5100b8dc60b2"
+    }) if tokentype == 'tirmble' else generate_jwt({
+        "iss": "https://example-cat.ctct.com",
         "exp": expiry,
         "azp": azp,
         "sub": "a324d232-76a8-4f11-bef5-5100b8dc60b2"
@@ -808,7 +814,7 @@ def get_html_form():
                             </select>
                         </div>
 
-                        <div class="form-group half-width">
+                        <div class="form-group half-width" id="jti-group">
                             <label for="jti">JTI:</label>
                             <input type="text" id="jti" name="jti" placeholder="Enter JWT Token Identifier" value="{str(uuid.uuid4())}">
                         </div>
@@ -896,6 +902,7 @@ def get_html_form():
                     const tokentypeSelect = document.getElementById("tokentype");
                     const kidInput = document.getElementById("kid");
                     const issurlInput = document.getElementById("issurl");
+                    const jtiGroup = document.getElementById("jti-group");
                     const formRow = kidInput.closest(".form-row");
 
                     function updateFormFieldPublicKeyVisibility() {{
@@ -903,6 +910,7 @@ def get_html_form():
                         const show = selectedValue === "cat";
 
                         formRow.style.display = show ? "" : "none";
+                        jtiGroup.style.display = "none";
 
                         kidInput.required = show;
                         issurlInput.required = show;
