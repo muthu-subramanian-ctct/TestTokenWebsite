@@ -301,7 +301,7 @@ def validate_form_submission(environ):
 
     # Validate form signature
     if form_error == None:
-        if issuer and 'CAT' in issuer: # Will be true for either true CAT tokens or the CTCT (CAT style) token types....
+        if issuer and 'cat' in issuer: # Will be true for either true CAT tokens or the CTCT (CAT style) token types....
             # Check for missing form fields required for CAT style access requests
             for field in ['kid', 'alg', 'issurl', 'signature']:
                 if field not in post_data:
