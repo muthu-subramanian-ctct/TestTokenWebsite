@@ -810,7 +810,7 @@ def get_html_form():
 
                         <div class="form-group half-width">
                             <label for="jti">JTI:</label>
-                            <input type="text" id="jti" name="jti" required placeholder="Enter JWT Token Identifier" value="{str(uuid.uuid4())}">
+                            <input type="text" id="jti" name="jti" placeholder="Enter JWT Token Identifier" value="{str(uuid.uuid4())}">
                         </div>
                     </div>
 
