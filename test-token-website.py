@@ -380,23 +380,22 @@ def handle_authentication(environ, overrideJTI=False, overrideExpiry=False):
         redirect = authRedirect + '?' + urlencode(params)
 
     # Handle the JWT creation
+    jwt_payload = {
+            "exp": expiry,
+            "azp": azp,
+            "sub": "a324d232-76a8-4f11-bef5-5100b8dc60b2"
+            }
+    jwt_payload["iss"] = "https://example-trimble.ctct.com" if tokentype == 'trimble' else "https://example-cat.ctct.com"
+    # Add the jti field only if the token type is 'trimble'
+    if tokentype == 'trimble':
+        jwt_payload["jti"] = jti
+
+    jwt_token = generate_jwt(jwt_payload) 
     
-    jwt_token = generate_jwt({
-        "iss": "https://example-trimble.ctct.com",
-        "jti": jti,
-        "exp": expiry,
-        "azp": azp,
-        "sub": "a324d232-76a8-4f11-bef5-5100b8dc60b2"
-    }) if tokentype == 'tirmble' else generate_jwt({
-        "iss": "https://example-cat.ctct.com",
-        "exp": expiry,
-        "azp": azp,
-        "sub": "a324d232-76a8-4f11-bef5-5100b8dc60b2"
-    })
 
     if tokentype == 'cat':
         # Sign the form fields (generate a hash of the field's contents, we ignore the access_token field as its a JWT with its own internal signature)
-        data_to_sign = f"{dsn};{username};{roles};{redirect};{kid};{alg};{issurl}"
+        data_to_sign = f"{dsn};{username};{kid};{alg};{issurl};{roles};{redirect}"
 
         private_key_obj = load_pem_private_key(ctct_private_key.encode(), password=None)
 
