@@ -395,8 +395,13 @@ def handle_authentication(environ, overrideJTI=False, overrideExpiry=False):
 
     if tokentype == 'cat':
         # Sign the form fields (generate a hash of the field's contents, we ignore the access_token field as its a JWT with its own internal signature)
-        data_to_sign = f"{dsn};{username};{kid};{alg};{issurl};{roles};{redirect}"
+        data_to_sign = f"{dsn};{username};{kid};{alg};{issurl}"
+        if roles:
+            data_to_sign += f";{roles}"
 
+        if redirect:
+            data_to_sign += f";{redirect}"
+            
         private_key_obj = load_pem_private_key(ctct_private_key.encode(), password=None)
 
         # Sign the data with the private key using PSS padding and SHA256 hash
