@@ -843,7 +843,7 @@ def get_html_form():
                     <div class="form-row">
                         <div class="form-group half-width">
                             <label for="azp">AZP:</label>
-                            <input type="text" id="azp" name="azp" required placeholder="Enter Authorized party" value="4c6f46d7-4504-4db4-ae9e-bcd1a5500c34">
+                            <input type="text" id="azp" name="azp" placeholder="Enter Authorized party" value="4c6f46d7-4504-4db4-ae9e-bcd1a5500c34">
                         </div>
 
                         <div class="form-group half-width">
