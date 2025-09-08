@@ -287,7 +287,7 @@ def validate_form_submission(environ):
     issurl = post_data.get('issurl', [''])[0]
 
     # Check for missing form fields (redirect is optional, all others are required)
-    for field in ['access_token', 'device', 'user', 'roles']:
+    for field in ['access_token', 'device', 'user']:
         if field not in post_data:
             form_error = f"Missing {field} field"
 
@@ -365,7 +365,6 @@ def handle_authentication(environ, overrideJTI=False, overrideExpiry=False):
             'dsn': dsn,
 
             'username': username,
-            'roles': roles,
 
             'authRedirect': authRedirect,
         }
@@ -940,9 +939,13 @@ def get_auto_submit_html(url: str, jwt_token: str, dsn: str, username: str, role
                 <input type="hidden" name="access_token" value="{jwt_token}" />
                 <input type="hidden" name="device" value="{dsn}" />
                 <input type="hidden" name="user" value="{username}" />
-                <input type="hidden" name="roles" value="{roles}" />
                 <input type="hidden" name="redirect" value="{redirect}" />
 """
+
+    if roles:
+            html += f"""
+                    <input type="hidden" name="roles" value="{roles}" />
+            """
 
     if signature is not None:
         html = html + f"""
