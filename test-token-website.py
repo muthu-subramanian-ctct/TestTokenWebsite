@@ -816,7 +816,6 @@ def get_html_form():
             <div class="form-container">
                 <h2>Parent Token Simulator</h2>
                 <form action="/grant-remote-access" method="GET" target="_blank">
-                    <input type="hidden" name="alg" value="RS256" />
 
                     <div class="form-row">
                         <div class="form-group half-width">
@@ -825,6 +824,11 @@ def get_html_form():
                                 <option value="cat">CTCT Test (CAT Style)</option>
                                 <option value="trimble">CTCT Test (Trimble Style)</option>
                             </select>
+                        </div>
+
+                        <div class="form-group half-width" id="alg-group">
+                            <label for="alg">Alg:</label>
+                            <input type="text" id="alg" name="alg" placeholder="Enter Alg" value="RS256">
                         </div>
 
                         <div class="form-group half-width" id="jti-group">
@@ -917,13 +921,16 @@ def get_html_form():
                     const issurlInput = document.getElementById("issurl");
                     const jtiGroup = document.getElementById("jti-group");
                     const formRow = kidInput.closest(".form-row");
+                    const algGroup = document.getElementById("alg-group");
 
                     function updateFormFieldPublicKeyVisibility() {{
                         const selectedValue = tokentypeSelect.value;
                         const show = selectedValue === "cat";
 
                         formRow.style.display = show ? "" : "none";
+                        algGroup.style.display = show ? "": "none";
                         jtiGroup.style.display = show ? "none" : "";
+                
 
                         kidInput.style.display = show;
                         issurlInput.style.display = show;
