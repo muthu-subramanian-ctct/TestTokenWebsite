@@ -836,12 +836,12 @@ def get_html_form():
                     <div class="form-row">
                         <div class="form-group half-width">
                             <label for="kid">KID:</label>
-                            <input type="text" id="kid" name="kid" required placeholder="Enter Key ID" value="1">
+                            <input type="text" id="kid" name="kid" placeholder="Enter Key ID" value="1">
                         </div>
 
                         <div class="form-group half-width">
                             <label for="issurl">Public Key URL:</label>
-                            <input type="text" id="issurl" name="issurl" required placeholder="Enter public key URL">
+                            <input type="text" id="issurl" name="issurl" placeholder="Enter public key URL">
                         </div>
                     </div>
 
@@ -925,8 +925,8 @@ def get_html_form():
                         formRow.style.display = show ? "" : "none";
                         jtiGroup.style.display = show ? "none" : "";
 
-                        kidInput.required = show;
-                        issurlInput.required = show;
+                        kidInput.style.display = show;
+                        issurlInput.style.display = show;
                     }}
 
                     tokentypeSelect.addEventListener("change", updateFormFieldPublicKeyVisibility);
