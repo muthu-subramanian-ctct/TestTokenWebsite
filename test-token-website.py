@@ -338,7 +338,13 @@ def handle_authentication(environ, overrideJTI=False, overrideExpiry=False):
 
     url = query_params.get('url', [''])[0]
 
-    expiry = (int(time.time()) + 120) if overrideExpiry else int(query_params.get('expiry', [''])[0])
+    expiry_value = query_params.get('expiry', [''])[0]
+    if overrideExpiry:
+        expiry = int(time.time()) + 120
+    elif expiry_value:
+        expiry = int(expiry_value)
+    else:
+        expiry = '' 
     dsn = query_params.get('dsn', [''])[0]
 
     username = query_params.get('username', [''])[0]
