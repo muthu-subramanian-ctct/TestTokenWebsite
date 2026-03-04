@@ -140,6 +140,7 @@ def validate_jwt(token, environ):
         subject = claims.get('sub', None)
         exp_timestamp = claims.get('exp', None)
         expiry = None
+        scope = claims.get('scope', None)
 
         # Check for missing claims
         claims = ['iss', 'azp', 'exp', 'jti', 'sub']
@@ -220,15 +221,15 @@ def validate_jwt(token, environ):
         if jwt_error is None:
             jwt.decode(token, public_key, algorithms=['RS256'])
 
-        return issuer_name, expiry, subject, jwt_id, jwt_error
+        return issuer_name, expiry, subject, jwt_id, jwt_error, scope
     except jwt.ExpiredSignatureError:
-        return issuer_name, expiry, subject, jwt_id, "Token has expired"
+        return issuer_name, expiry, subject, jwt_id, "Token has expired", scope
     except jwt.InvalidSignatureError:
-        return issuer_name, expiry, subject, jwt_id, "Invalid signature"
+        return issuer_name, expiry, subject, jwt_id, "Invalid signature", scope
     except jwt.DecodeError:
-        return issuer_name, expiry, subject, jwt_id, "Error decoding token"
+        return issuer_name, expiry, subject, jwt_id, "Error decoding token", scope
     except jwt.InvalidTokenError:
-        return issuer_name, expiry, subject, jwt_id, "Invalid token"
+        return issuer_name, expiry, subject, jwt_id, "Invalid token", scope
 
 # Function to validate the form field signature
 def validate_signature(data, signature, jwks_url, kid, alg):
@@ -253,11 +254,11 @@ def validate_signature(data, signature, jwks_url, kid, alg):
 def validate_form_submission(environ):
     # Check if the request method is POST
     if environ['REQUEST_METHOD'] != 'POST':
-        return (None, None, None, None, None, None, None, None, "Missing", "Invalid HTTP method. POST required", {}, '401 Access Denied')
+        return (None, None, None, None, None, None, None, None, "Missing", "Invalid HTTP method. POST required", {}, '401 Access Denied', None)
 
     # Check if the content type is correct
     if environ.get('CONTENT_TYPE') != 'application/x-www-form-urlencoded':
-        return (None, None, None, None, None, None, None, None, "Missing", "Invalid content type. application/x-www-form-urlencoded required", {}, '401 Access Denied')
+        return (None, None, None, None, None, None, None, None, "Missing", "Invalid content type. application/x-www-form-urlencoded required", {}, '401 Access Denied', None)
 
     # Extract POST data
     try:
@@ -269,7 +270,7 @@ def validate_form_submission(environ):
         request_body = environ['wsgi.input'].read(request_body_size)
         post_data = parse_qs(request_body.decode('utf-8'))
     except Exception as e:
-        return (None, None, None, None, None, None, None, None, None, "Error reading request body", {}, '401 Access Denied')
+        return (None, None, None, None, None, None, None, None, None, "Error reading request body", {}, '401 Access Denied', None)
 
     # Convert post_data values from lists to single values for easier handling
     form_error = None
@@ -292,7 +293,7 @@ def validate_form_submission(environ):
             form_error = f"Missing {field} field"
 
     # Validate JWT
-    (issuer, expiry, subject, jwt_id, jwt_error) = validate_jwt(jwt_token, environ)
+    (issuer, expiry, subject, jwt_id, jwt_error, scope) = validate_jwt(jwt_token, environ)
 
     if form_error == None and roles != '':
         for role in [r.strip() for r in roles.split(',')]:
@@ -329,7 +330,25 @@ def validate_form_submission(environ):
                 form_error = validate_signature(data_to_sign, signature, issurl, kid, alg)
 
     http_result_code = '401 Access Denied' if jwt_error is not None or form_error is not None else '200 OK'
-    return (issuer, expiry, subject, jwt_id, dsn, username, roles, redirect, jwt_error, form_error, form_fields, http_result_code)
+    return (issuer, expiry, subject, jwt_id, dsn, username, roles, redirect, jwt_error, form_error, form_fields, http_result_code, scope)
+
+def build_scope(dsn, username, roles):
+    """Build the custom scope parameter for JWT token"""
+    scope_parts = []
+    
+    # Add device serial number scope
+    if dsn:
+        scope_parts.append(f"remote_access_azure:device.serialnumber:{dsn}#worksmanager-device-serialnumber")
+    
+    # Add user role scope (include all roles as comma-separated values)
+    if roles:
+        scope_parts.append(f"remote_access_azure:user.role:{roles}#worksmanager-account-admin")
+    
+    # Add user name scope
+    if username:
+        scope_parts.append(f"remote_access_azure:user.name:{username}#worksmanager-user-name")
+    
+    return ' '.join(scope_parts)
 
 def handle_authentication(environ, overrideJTI=False, overrideExpiry=False):
     # Extract query parameters
@@ -360,6 +379,9 @@ def handle_authentication(environ, overrideJTI=False, overrideExpiry=False):
     alg = query_params.get('alg', [''])[0]
 
     issurl = query_params.get('issurl', [''])[0]
+    
+    # Get the includeformdata parameter (only relevant for trimble tokens)
+    includeformdata = query_params.get('includeformdata', [''])[0] == 'true'
 
     redirect = ''
     if (authRedirect != ''):
@@ -394,6 +416,11 @@ def handle_authentication(environ, overrideJTI=False, overrideExpiry=False):
     # Add the jti field only if the token type is 'trimble'
     if tokentype == 'trimble':
         jwt_payload["jti"] = jti
+    
+    # Add custom scope parameter
+    scope = build_scope(dsn, username, roles)
+    if scope:
+        jwt_payload["scope"] = scope
 
     jwt_token = generate_jwt(jwt_payload) 
     
@@ -415,7 +442,7 @@ def handle_authentication(environ, overrideJTI=False, overrideExpiry=False):
     else:
         signature = None
 
-    return (url, jwt_token, dsn, username, roles, redirect, kid, alg, issurl, signature)
+    return (url, jwt_token, dsn, username, roles, redirect, kid, alg, issurl, signature, tokentype, includeformdata)
 
 # Helper: convert an int to un‑padded base64url, per RFC 7518 §6.3.1
 def _b64url_uint(val: int) -> str:
@@ -571,20 +598,20 @@ def application(environ, start_response):
         response_body = get_html_form().encode('utf-8')
     elif path == '/grant-remote-access':
        # Demonstrates how to generate a suitable form post and return it to the client for auto submission
-       (url, jwt_token, dsn, username, roles, redirect, kid, alg, issurl, signature) = handle_authentication(environ)
-       response_body = get_auto_submit_html(url, jwt_token, dsn, username, roles,  redirect, kid, alg, issurl, signature).encode('utf-8')
+       (url, jwt_token, dsn, username, roles, redirect, kid, alg, issurl, signature, tokentype, includeformdata) = handle_authentication(environ)
+       response_body = get_auto_submit_html(url, jwt_token, dsn, username, roles,  redirect, kid, alg, issurl, signature, tokentype, includeformdata).encode('utf-8')
     elif path == '/reauthenticate':
        # Demonstrates how the parent can supply a URL that Earthworks will redirect the user to in order to re-authenticate
        # their permission to access a given EC520 (i.e. if they are still allowed to access it this API end point
        # should generate a new access token and post it back to the EC520
-       (url, jwt_token, dsn, username, roles, redirect, kid, alg, issurl, signature) = handle_authentication(environ, overrideJTI=True, overrideExpiry=True)
-       response_body = get_reauthenticate_html(url, jwt_token, dsn, username, roles, redirect, kid, alg, issurl, signature).encode('utf-8')
+       (url, jwt_token, dsn, username, roles, redirect, kid, alg, issurl, signature, tokentype, includeformdata) = handle_authentication(environ, overrideJTI=True, overrideExpiry=True)
+       response_body = get_reauthenticate_html(url, jwt_token, dsn, username, roles, redirect, kid, alg, issurl, signature, tokentype, includeformdata).encode('utf-8')
     elif path == '/validate-token':
        # A "helper" page - parent's can test out their token generation and form posts by sending them to this
        # end point and they will get feedback on the contents and validity of the token.
-       (issuer, expiry, subject, jwt_id, dsn, username, roles, redirect, jwt_error, form_error, form_fields, status) = validate_form_submission(environ)
+       (issuer, expiry, subject, jwt_id, dsn, username, roles, redirect, jwt_error, form_error, form_fields, status, scope) = validate_form_submission(environ)
        print('the status is ', status, jwt_error, form_error)
-       response_body = get_validation_html(issuer, expiry, subject, jwt_id, dsn, username, roles, redirect, jwt_error, form_error, form_fields).encode('utf-8')
+       response_body = get_validation_html(issuer, expiry, subject, jwt_id, dsn, username, roles, redirect, jwt_error, form_error, form_fields, scope).encode('utf-8')
     elif path == '/integration-tests':
         if method == 'POST':
             return run_integration_tests(environ, start_response)
@@ -837,6 +864,15 @@ def get_html_form():
                         </div>
                     </div>
 
+                    <div class="form-row" id="include-formdata-group" style="display: none;">
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="includeformdata" name="includeformdata" value="true" checked>
+                                Include form data with Trimble JWT
+                            </label>
+                        </div>
+                    </div>
+
                     <div class="form-row">
                         <div class="form-group half-width">
                             <label for="kid">KID:</label>
@@ -922,6 +958,7 @@ def get_html_form():
                     const jtiGroup = document.getElementById("jti-group");
                     const formRow = kidInput.closest(".form-row");
                     const algGroup = document.getElementById("alg-group");
+                    const includeFormDataGroup = document.getElementById("include-formdata-group");
 
                     function updateFormFieldPublicKeyVisibility() {{
                         const selectedValue = tokentypeSelect.value;
@@ -930,6 +967,7 @@ def get_html_form():
                         formRow.style.display = show ? "" : "none";
                         algGroup.style.display = show ? "": "none";
                         jtiGroup.style.display = show ? "none" : "";
+                        includeFormDataGroup.style.display = show ? "none" : "";
                 
 
                         kidInput.style.display = show;
@@ -944,18 +982,24 @@ def get_html_form():
     </html>
     """
 
-def get_auto_submit_html(url: str, jwt_token: str, dsn: str, username: str, roles: str, redirect: str, kid: str, alg: str, issurl: str, signature: str):
+def get_auto_submit_html(url: str, jwt_token: str, dsn: str, username: str, roles: str, redirect: str, kid: str, alg: str, issurl: str, signature: str, tokentype: str, includeformdata: bool):
     html = f"""
     <html>
         <body onload="document.getElementById('autoSubmitForm').submit();">
             <form id="autoSubmitForm" method="POST" action="{url}">
                 <input type="hidden" name="access_token" value="{jwt_token}" />
+"""
+
+    # For Trimble tokens, only include form data if the checkbox was checked
+    # For CAT tokens, always include form data
+    if tokentype == 'cat' or (tokentype == 'trimble' and includeformdata):
+        html += f"""
                 <input type="hidden" name="device" value="{dsn}" />
                 <input type="hidden" name="user" value="{username}" />
                 <input type="hidden" name="redirect" value="{redirect}" />
 """
 
-    if roles:
+        if roles:
             html += f"""
                     <input type="hidden" name="roles" value="{roles}" />
             """
@@ -975,7 +1019,7 @@ def get_auto_submit_html(url: str, jwt_token: str, dsn: str, username: str, role
 
     return html
 
-def get_reauthenticate_html(url: str, jwt_token: str, dsn: str, username: str, roles: str, redirect: str, kid: str, alg: str, issurl: str, signature: str):
+def get_reauthenticate_html(url: str, jwt_token: str, dsn: str, username: str, roles: str, redirect: str, kid: str, alg: str, issurl: str, signature: str, tokentype: str, includeformdata: bool):
     html = f"""
     <!DOCTYPE html>
     <html lang="en">
@@ -992,6 +1036,12 @@ def get_reauthenticate_html(url: str, jwt_token: str, dsn: str, username: str, r
 
                 <form method="POST" action="{url}">
                     <input type="hidden" name="access_token" value="{jwt_token}" />
+"""
+
+    # For Trimble tokens, only include form data if the checkbox was checked
+    # For CAT tokens, always include form data
+    if tokentype == 'cat' or (tokentype == 'trimble' and includeformdata):
+        html += f"""
                     <input type="hidden" name="device" value="{dsn}" />
                     <input type="hidden" name="user" value="{username}" />
                     <input type="hidden" name="roles" value="{roles}" />
@@ -1016,7 +1066,7 @@ def get_reauthenticate_html(url: str, jwt_token: str, dsn: str, username: str, r
 
     return html
 
-def get_validation_html(issuer, expiry, subject, jwt_id, dsn, username, roles, redirect, jwt_error, form_error, form_fields):
+def get_validation_html(issuer, expiry, subject, jwt_id, dsn, username, roles, redirect, jwt_error, form_error, form_fields, scope):
     validity_status = "Valid" if jwt_error is None and form_error is None else "Invalid"
     redirect_script = f"window.location.href = \'{redirect}\';"
     form_fields_str = "\n".join([f"<strong>{key}:</strong> {value}" for key, value in form_fields.items()])
@@ -1077,6 +1127,10 @@ def get_validation_html(issuer, expiry, subject, jwt_id, dsn, username, roles, r
                         <div class="row">
                             <span class="label">Roles:</span>
                             <span class="value">{roles}</span>
+                        </div>
+                        <div class="row">
+                            <span class="label">Scope:</span>
+                            <span class="value" style="word-break: break-all;">{scope if scope else 'N/A'}</span>
                         </div>
                         <div class="row">
                             <span class="label">Reauthentication:</span>
