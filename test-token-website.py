@@ -332,20 +332,20 @@ def validate_form_submission(environ):
     http_result_code = '401 Access Denied' if jwt_error is not None or form_error is not None else '200 OK'
     return (issuer, expiry, subject, jwt_id, dsn, username, roles, redirect, jwt_error, form_error, form_fields, http_result_code, scope)
 
-def build_scope(dsn, username, roles):
+def build_scope(dsn, username, roles, include_serial=True, include_username=True, include_roles=True):
     """Build the custom scope parameter for JWT token"""
     scope_parts = []
     
     # Add device serial number scope
-    if dsn:
+    if dsn and include_serial:
         scope_parts.append(f"remote_access_azure:device.serialnumber:{dsn}#worksmanager-device-serialnumber")
     
     # Add user role scope (include all roles as comma-separated values)
-    if roles:
+    if roles and include_roles:
         scope_parts.append(f"remote_access_azure:user.role:{roles}#worksmanager-account-admin")
     
     # Add user name scope
-    if username:
+    if username and include_username:
         scope_parts.append(f"remote_access_azure:user.name:{username}#worksmanager-user-name")
     
     return ' '.join(scope_parts)
@@ -382,6 +382,9 @@ def handle_authentication(environ, overrideJTI=False, overrideExpiry=False):
     
     # Get the includeformdata parameter (only relevant for trimble tokens)
     includeformdata = query_params.get('includeformdata', [''])[0] == 'true'
+    include_serial = query_params.get('includeserialnumber', [''])[0] == 'true'
+    include_username = query_params.get('includeusername', [''])[0] == 'true'
+    include_roles = query_params.get('includeroles', [''])[0] == 'true'
 
     redirect = ''
     if (authRedirect != ''):
@@ -417,10 +420,15 @@ def handle_authentication(environ, overrideJTI=False, overrideExpiry=False):
     if tokentype == 'trimble':
         jwt_payload["jti"] = jti
     
-    # Add custom scope parameter
-    scope = build_scope(dsn, username, roles)
-    if scope:
-        jwt_payload["scope"] = scope
+    # Add custom scope parameter only if includeformdata is True
+    if includeformdata:
+        scope = build_scope(dsn, username, roles, include_serial, include_username, include_roles)
+        if scope:
+            jwt_payload["scope"] = scope
+        else:
+            scope = None
+    else:
+        scope = None
 
     jwt_token = generate_jwt(jwt_payload) 
     
@@ -743,6 +751,32 @@ def get_css():
         margin: 0px;
     }
 
+    .checkbox-nested {
+        margin-left: 30px;
+        margin-top: 8px;
+    }
+
+    .checkbox-nested label {
+        font-size: 13px;
+        font-weight: normal;
+        display: flex;
+        align-items: center;
+        margin-bottom: 5px;
+    }
+
+    .checkbox-nested input[type="checkbox"]:disabled {
+        cursor: not-allowed;
+    }
+
+    .checkbox-nested label:has(input:disabled) {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .checkbox-nested input[type="checkbox"] {
+        margin-right: 8px;
+    }
+
     .tabs {
         display: flex;
         cursor: pointer;
@@ -868,8 +902,22 @@ def get_html_form():
                         <div class="form-group">
                             <label>
                                 <input type="checkbox" id="includeformdata" name="includeformdata" value="true" checked>
-                                Include form data with Trimble JWT
+                                Include scope data with Trimble JWT
                             </label>
+                            <div class="checkbox-nested" id="scope-options">
+                                <label>
+                                    <input type="checkbox" id="includeserialnumber" name="includeserialnumber" value="true" checked>
+                                    Serial Number
+                                </label>
+                                <label>
+                                    <input type="checkbox" id="includeusername" name="includeusername" value="true" checked>
+                                    User Name
+                                </label>
+                                <label>
+                                    <input type="checkbox" id="includeroles" name="includeroles" value="true" checked>
+                                    Roles
+                                </label>
+                            </div>
                         </div>
                     </div>
 
@@ -951,6 +999,7 @@ def get_html_form():
                     document.getElementById('issurl').value = 'https://stage-vlproductivity.cat.com/.well-known/ec520/keys/';
                     document.getElementById('redirecturl').value = window.location.href + 'reauthenticate';
                     document.getElementById('urlInput').value = window.location.href + 'validate-token';
+                    document.getElementById('azp').value = '4c6f46d7-4504-4db4-ae9e-bcd1a5500c34';
 
                     const tokentypeSelect = document.getElementById("tokentype");
                     const kidInput = document.getElementById("kid");
@@ -959,6 +1008,21 @@ def get_html_form():
                     const formRow = kidInput.closest(".form-row");
                     const algGroup = document.getElementById("alg-group");
                     const includeFormDataGroup = document.getElementById("include-formdata-group");
+
+                    // Handle parent-child checkbox relationship for scope options
+                    const includeFormDataCheckbox = document.getElementById("includeformdata");
+                    const scopeOptions = document.getElementById("scope-options");
+                    const childCheckboxes = scopeOptions.querySelectorAll('input[type="checkbox"]');
+
+                    function updateScopeChildCheckboxes() {{
+                        const isParentChecked = includeFormDataCheckbox.checked;
+                        childCheckboxes.forEach(checkbox => {{
+                            checkbox.disabled = !isParentChecked;
+                        }});
+                    }}
+
+                    includeFormDataCheckbox.addEventListener("change", updateScopeChildCheckboxes);
+                    updateScopeChildCheckboxes();
 
                     function updateFormFieldPublicKeyVisibility() {{
                         const selectedValue = tokentypeSelect.value;
