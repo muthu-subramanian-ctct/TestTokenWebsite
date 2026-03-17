@@ -332,8 +332,10 @@ def validate_form_submission(environ):
     http_result_code = '401 Access Denied' if jwt_error is not None or form_error is not None else '200 OK'
     return (issuer, expiry, subject, jwt_id, dsn, username, roles, redirect, jwt_error, form_error, form_fields, http_result_code, scope)
 
-def build_scope(dsn, username, roles, include_serial=True, include_username=True, include_roles=True):
-    """Build the custom scope parameter for JWT token"""
+def build_scope(dsn, roles, include_serial=True, include_roles=True):
+    """Build the custom scope parameter for JWT token.
+    Note: Username is NEVER included in scope - it's only sent via form data.
+    """
     scope_parts = []
     
     # Add device serial number scope
@@ -343,10 +345,6 @@ def build_scope(dsn, username, roles, include_serial=True, include_username=True
     # Add user role scope (include all roles as comma-separated values)
     if roles and include_roles:
         scope_parts.append(f"remote_access_azure:user.role:{roles}#worksmanager-account-admin")
-    
-    # Add user name scope
-    if username and include_username:
-        scope_parts.append(f"remote_access_azure:user.name:{username}#worksmanager-user-name")
     
     return ' '.join(scope_parts)
 
@@ -383,7 +381,6 @@ def handle_authentication(environ, overrideJTI=False, overrideExpiry=False):
     # Get the includeformdata parameter (only relevant for trimble tokens)
     includeformdata = query_params.get('includeformdata', [''])[0] == 'true'
     include_serial = query_params.get('includeserialnumber', [''])[0] == 'true'
-    include_username = query_params.get('includeusername', [''])[0] == 'true'
     include_roles = query_params.get('includeroles', [''])[0] == 'true'
 
     redirect = ''
@@ -422,7 +419,7 @@ def handle_authentication(environ, overrideJTI=False, overrideExpiry=False):
     
     # Add custom scope parameter only if includeformdata is True
     if includeformdata:
-        scope = build_scope(dsn, username, roles, include_serial, include_username, include_roles)
+        scope = build_scope(dsn, roles, include_serial, include_roles)
         if scope:
             jwt_payload["scope"] = scope
         else:
@@ -910,10 +907,6 @@ def get_html_form():
                                     Serial Number
                                 </label>
                                 <label>
-                                    <input type="checkbox" id="includeusername" name="includeusername" value="true" checked>
-                                    User Name
-                                </label>
-                                <label>
                                     <input type="checkbox" id="includeroles" name="includeroles" value="true" checked>
                                     Roles
                                 </label>
@@ -1054,9 +1047,9 @@ def get_auto_submit_html(url: str, jwt_token: str, dsn: str, username: str, role
                 <input type="hidden" name="access_token" value="{jwt_token}" />
 """
 
-    # For Trimble tokens, only include form data if the checkbox was checked
-    # For CAT tokens, always include form data
-    if tokentype == 'cat' or (tokentype == 'trimble' and includeformdata):
+    # For CAT tokens: always include form data
+    # For Trimble tokens: only include form data when scope is NOT present (includeformdata=False)
+    if tokentype == 'cat' or (tokentype == 'trimble' and not includeformdata):
         html += f"""
                 <input type="hidden" name="device" value="{dsn}" />
                 <input type="hidden" name="user" value="{username}" />
@@ -1102,9 +1095,9 @@ def get_reauthenticate_html(url: str, jwt_token: str, dsn: str, username: str, r
                     <input type="hidden" name="access_token" value="{jwt_token}" />
 """
 
-    # For Trimble tokens, only include form data if the checkbox was checked
-    # For CAT tokens, always include form data
-    if tokentype == 'cat' or (tokentype == 'trimble' and includeformdata):
+    # For CAT tokens: always include form data
+    # For Trimble tokens: only include form data when scope is NOT present (includeformdata=False)
+    if tokentype == 'cat' or (tokentype == 'trimble' and not includeformdata):
         html += f"""
                     <input type="hidden" name="device" value="{dsn}" />
                     <input type="hidden" name="user" value="{username}" />
